@@ -21,7 +21,19 @@ const uri = `mongodb+srv://${process.env.USER_DB}:${process.env.PASS_DB}@cluster
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
 async function run(){
-    
+    try {
+        const bikeCategorysCollection = client.db('bike-resel-project').collection('bike-categorys');
+
+        app.get('/categorys', async(req, res)=>{
+            const query = {};
+            const categorys = await bikeCategorysCollection.find(query).toArray();
+            res.send(categorys)
+        })
+        
+    } catch (error) {
+        console.log(error.message)
+    }
+
 
 }
 run().catch(console.log)
