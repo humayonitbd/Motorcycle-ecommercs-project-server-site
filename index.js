@@ -4,6 +4,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 const port = process.env.PORT || 5000;
 require('dotenv').config();
+const jwt = require('jsonwebtoken');
 
 
 //middle ware
@@ -22,9 +23,21 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 
 async function run(){
     try {
+        const usersCollection = client.db('bike-resel-project').collection('users');
         const bikeCategorysCollection = client.db('bike-resel-project').collection('bike-categorys');
         const bikeAllCategoryCollection = client.db('bike-resel-project').collection('bike-all-categorys');
         const bookingProductsCollection = client.db('bike-resel-project').collection('bookingProducts');
+
+        //users post info 
+        app.put('/users', async(req, res)=>{
+            const body = req.body;
+            const result = await usersCollection.insertOne(body);
+            res.send(result);
+        })
+
+
+
+
         //category get api
         app.get('/categorys', async(req, res)=>{
             const query = {};
@@ -66,6 +79,27 @@ async function run(){
             const orders = await bookingProductsCollection.find(query).toArray();
             res.send(orders);
 
+        })
+        //booking product delete user
+        app.delete('/mybookedProducts/:id', async(req, res)=>{
+            const id = req.params.id;
+            const query = {_id: ObjectId(id)}
+            const orders = await bookingProductsCollection.deleteOne(query);
+            res.send(orders);
+
+        })
+
+
+        // jwt token get
+        app.get('jwt', async(req, res)=>{
+            const email = req.query.email;
+            const userEmail = {email: email}
+            const user = await usersCollection.findOne(userEmail);
+            if(user){
+                const token = jwt.sign({email}, process.env.JWT_TOKEN, {expiresIn: '1h'})
+                return res.send({accessToken: token})
+            }
+            res.status(403).send({jwttoken: ''})
         })
 
         
