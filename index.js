@@ -47,6 +47,8 @@ async function run(){
         const bikeCategorysCollection = client.db('bike-resel-project').collection('bike-categorys');
         const bikeAllCategoryCollection = client.db('bike-resel-project').collection('bike-all-categorys');
         const bookingProductsCollection = client.db('bike-resel-project').collection('bookingProducts');
+        const sellarAddProductCollection = client.db('bike-resel-project').collection('sellarAddProducts');
+        const adverticeProductCollection = client.db('bike-resel-project').collection('adverticeProducts');
 
         //users post info 
         app.post('/users', async(req, res)=>{
@@ -88,8 +90,9 @@ async function run(){
         })
 
             ///admin role implement 
-        app.get('/users/admin', async(req, res)=>{
-            const email = req.query.email;
+        app.get('/users/admin/:email', async(req, res)=>{
+            const email = req.params.email;
+            console.log(email)
             const filter = {email: email}
             const user = await usersCollection.findOne(filter);
             res.send({isAdmin: user.role})
@@ -114,7 +117,7 @@ async function run(){
         //all category get
         app.get('/allCategory', async(req, res)=>{
             const category = req.query.category;
-            console.log(category)
+           
             const bandAllCategory = {category: category}
             const bandCategory = await bikeAllCategoryCollection.find(bandAllCategory).toArray();
             res.send(bandCategory)
@@ -150,16 +153,63 @@ async function run(){
 
         })
 
+        //sellar add product post
+        app.post('/addProducts', async(req, res)=>{
+            const body = req.body;
+            const addProducts = await sellarAddProductCollection.insertOne(body);
+            res.send(addProducts)
+
+        })
+
+        //sellar add product get
+        app.get('/allMyProducts',verifyJwt, async(req, res)=>{
+            const email = req.query.email;
+            console.log(email)
+            const decodedEmail = req.decoded.email;
+            console.log(decodedEmail)
+            if(email !== decodedEmail){
+                return res.status(403).send({message: 'forbidden accesss'})
+            }
+            const query = {sellerEmail: email}
+            const allProducts = await sellarAddProductCollection.find(query).toArray();
+            res.send(allProducts)
+
+        })
+
+        //sellar add product delete 
+        app.delete('/allMyProducts/:id', async(req, res)=>{
+            const id = req.params.id;
+            const query = {_id: ObjectId(id)}
+            const orders = await sellarAddProductCollection.deleteOne(query);
+            res.send(orders);
+
+        })
+
+
+        //advertice product post 
+        app.post('/addverticeProducts', async(req, res)=>{
+            const body = req.body;
+            console.log(body)
+            const addverticeProducts = await adverticeProductCollection.insertOne(body);
+            res.send(addverticeProducts)
+
+        })
+        //advertice product get 
+        app.get('/addverticeProducts', async(req, res)=>{
+            const query = {};
+            const addverticeProducts = await adverticeProductCollection.find(query).toArray();
+            res.send(addverticeProducts)
+
+        })
+
 
         // jwt token get
         app.get('/jwt', async(req, res)=>{
             const email = req.query.email;
-            console.log(email)
             const userEmail = {email: email}
             const user = await usersCollection.findOne(userEmail);
-            console.log(user)
             if(user){
-                const token = jwt.sign({email}, process.env.JWT_TOKEN, {expiresIn: '1h'})
+                const token = jwt.sign({email}, process.env.JWT_TOKEN, {expiresIn: '2h'})
                 return res.send({accessToken: token});
             }
             res.status(403).send({jwttoken: ''})
