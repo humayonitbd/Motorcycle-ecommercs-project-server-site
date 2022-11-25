@@ -3,8 +3,8 @@ const cors = require('cors')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 const port = process.env.PORT || 5000;
-require('dotenv').config();
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
 
 //middle ware
@@ -21,6 +21,26 @@ const uri = `mongodb+srv://${process.env.USER_DB}:${process.env.PASS_DB}@cluster
 
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
+
+//verify jwt
+const verifyJwt=(req, res, next)=>{
+    const authHeader = req.headers.authorization;
+
+    if(!authHeader){
+        return res.status(401).send('unauthorized access!')
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, process.env.JWT_TOKEN, function(err, decoded){
+        if(err){
+            return res.status(403).send({message: 'forbiden access'})
+        }
+        req.decoded = decoded;
+        next();
+    })
+
+
+}
+
 async function run(){
     try {
         const usersCollection = client.db('bike-resel-project').collection('users');
@@ -29,14 +49,51 @@ async function run(){
         const bookingProductsCollection = client.db('bike-resel-project').collection('bookingProducts');
 
         //users post info 
-        app.put('/users', async(req, res)=>{
+        app.post('/users', async(req, res)=>{
             const body = req.body;
             const result = await usersCollection.insertOne(body);
             res.send(result);
         })
 
+        //get all users
+        app.get('/allUsers', async(req, res)=>{
+            const filter = {role: 'user'}
+            const users = await usersCollection.find(filter).toArray();
+            res.send(users)
+            
+        })
+        //delete users
+        app.delete('/allUsers/:id', async(req, res)=>{
+            const id = req.params.id;
+            const query = {_id: ObjectId(id)}
+            const users = await usersCollection.deleteOne(query);
+            res.send(users);
 
+        })
+        //get all seller
+        app.get('/allSellers', async(req, res)=>{
+            const filter = {role: 'seller'}
+            const users = await usersCollection.find(filter).toArray();
+            res.send(users)
+            
+        })
 
+        //delete users
+        app.delete('/allSellers/:id', async(req, res)=>{
+            const id = req.params.id;
+            const query = {_id: ObjectId(id)}
+            const users = await usersCollection.deleteOne(query);
+            res.send(users);
+
+        })
+
+            ///admin role implement 
+        app.get('/users/admin', async(req, res)=>{
+            const email = req.query.email;
+            const filter = {email: email}
+            const user = await usersCollection.findOne(filter);
+            res.send({isAdmin: user.role})
+        })
 
         //category get api
         app.get('/categorys', async(req, res)=>{
@@ -73,8 +130,12 @@ async function run(){
         })
 
         //booking product get email
-        app.get('/mybookedProducts', async(req, res)=>{
+        app.get('/mybookedProducts', verifyJwt, async(req, res)=>{
             const email = req.query.email;
+            const decodedEmail = req.decoded.email;
+            if(email !== decodedEmail){
+                return res.status(403).send({message: 'forbidden accesss'})
+            }
             const query = {email: email}
             const orders = await bookingProductsCollection.find(query).toArray();
             res.send(orders);
@@ -91,13 +152,15 @@ async function run(){
 
 
         // jwt token get
-        app.get('jwt', async(req, res)=>{
+        app.get('/jwt', async(req, res)=>{
             const email = req.query.email;
+            console.log(email)
             const userEmail = {email: email}
             const user = await usersCollection.findOne(userEmail);
+            console.log(user)
             if(user){
                 const token = jwt.sign({email}, process.env.JWT_TOKEN, {expiresIn: '1h'})
-                return res.send({accessToken: token})
+                return res.send({accessToken: token});
             }
             res.status(403).send({jwttoken: ''})
         })
