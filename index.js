@@ -5,6 +5,7 @@ const app = express();
 const port = process.env.PORT || 5000;
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
+const stripe = require("stripe")(process.env.STRIPE_SECRET);
 
 
 //middle ware
@@ -47,9 +48,9 @@ async function run(){
         const bikeCategorysCollection = client.db('bike-resel-project').collection('bike-categorys');
         const bikeAllCategoryCollection = client.db('bike-resel-project').collection('bike-all-categorys');
         const bookingProductsCollection = client.db('bike-resel-project').collection('bookingProducts');
-        const sellarAddProductCollection = client.db('bike-resel-project').collection('sellarAddProducts');
         const adverticeProductCollection = client.db('bike-resel-project').collection('adverticeProducts');
         const wishListProductsCollection = client.db('bike-resel-project').collection('wishListProducts');
+        const paymentsCollection = client.db('bike-resel-project').collection('payments');
 
         //users post info 
         app.post('/users', async(req, res)=>{
@@ -81,7 +82,7 @@ async function run(){
             
         })
 
-        //delete users
+        //delete seller
         app.delete('/allSellers/:id', async(req, res)=>{
             const id = req.params.id;
             const query = {_id: ObjectId(id)}
@@ -90,10 +91,28 @@ async function run(){
 
         })
 
+        //verify seller
+        app.put('/seller/verify/:id', async(req, res)=>{
+            const id = req.params.id;
+            const filter = {_id: ObjectId(id)}
+            const options = { upsert: true };
+            const updatedDoc = {
+                $set: {
+                    verify: true,
+                    
+                }
+            }
+
+            const verifySeller = await usersCollection.updateOne(filter, updatedDoc, options)
+            res.send(verifySeller)
+
+
+        })
+
             ///admin role implement 
         app.get('/users/admin/:email', async(req, res)=>{
             const email = req.params.email;
-            console.log(email)
+            // console.log(email)
             const filter = {email: email}
             const user = await usersCollection.findOne(filter);
             res.send({isAdmin: user.role})
@@ -118,12 +137,10 @@ async function run(){
         //all category get
         app.get('/allCategory', async(req, res)=>{
             const category = req.query.category;
-           
             const bandAllCategory = {category: category}
             const bandCategory = await bikeAllCategoryCollection.find(bandAllCategory).toArray();
             res.send(bandCategory)
         })
-
 
         //booking product data post 
         app.post('/bookedProduct', async(req, res)=>{
@@ -154,10 +171,20 @@ async function run(){
 
         })
 
-        //sellar add product post
+         //booking product delete user
+         app.get('/mybookedProducts/:id', async(req, res)=>{
+            const id = req.params.id;
+            const query = {_id: ObjectId(id)}
+            const paymentOders = await bookingProductsCollection.findOne(query);
+            res.send(paymentOders);
+
+        })
+
+
+        // sellar add product post
         app.post('/addProducts', async(req, res)=>{
             const body = req.body;
-            const addProducts = await sellarAddProductCollection.insertOne(body);
+            const addProducts = await bikeAllCategoryCollection.insertOne(body);
             res.send(addProducts)
 
         })
@@ -172,7 +199,7 @@ async function run(){
                 return res.status(403).send({message: 'forbidden accesss'})
             }
             const query = {sellerEmail: email}
-            const allProducts = await sellarAddProductCollection.find(query).toArray();
+            const allProducts = await bikeAllCategoryCollection.find(query).toArray();
             res.send(allProducts)
 
         })
@@ -181,24 +208,32 @@ async function run(){
         app.delete('/allMyProducts/:id', async(req, res)=>{
             const id = req.params.id;
             const query = {_id: ObjectId(id)}
-            const orders = await sellarAddProductCollection.deleteOne(query);
+            const orders = await bikeAllCategoryCollection.deleteOne(query);
             res.send(orders);
 
         })
 
 
-        //advertice product post 
-        app.post('/addverticeProducts', async(req, res)=>{
-            const body = req.body;
-            console.log(body)
-            const addverticeProducts = await adverticeProductCollection.insertOne(body);
-            res.send(addverticeProducts)
 
+        //advertice product put 
+        app.put('/addverticeProducts/:id', async(req, res)=>{
+            const id = req.params.id;
+            const filter = {_id: ObjectId(id)}
+            const options = { upsert: true };
+            const updatedDoc = {
+                $set: {
+                    advertice: true,
+                    
+                }
+            }
+            const addverticeProducts = await bikeAllCategoryCollection.updateOne(filter, updatedDoc, options);
+            res.send(addverticeProducts)
+            
         })
         //advertice product get 
         app.get('/addverticeProducts', async(req, res)=>{
-            const query = {};
-            const addverticeProducts = await adverticeProductCollection.find(query).toArray();
+            const query = {advertice: true};
+            const addverticeProducts = await bikeAllCategoryCollection.find(query).toArray();
             res.send(addverticeProducts)
 
         })
@@ -213,9 +248,9 @@ async function run(){
         //wishlist product get api
         app.get('/wishListProducts', verifyJwt, async(req, res)=>{
             const email = req.query.email;
-            console.log(email)
+            // console.log(email)
             const decodedEmail = req.decoded.email;
-            console.log(decodedEmail)
+            // console.log(decodedEmail)
             if(email !== decodedEmail){
                 return res.status(403).send({message: 'forbidden accesss'})
             }
@@ -224,6 +259,51 @@ async function run(){
             res.send(wishListProducts)
 
         })
+
+        //payment methode
+        app.post("/create-payment-intent", async (req, res) => {
+            const orders = req.body;
+            const price = orders.productPrice;
+            const amount = price * 100;
+            const paymentIntent = await stripe.paymentIntents.create({
+              amount: amount,
+              currency: "usd",
+              "payment_method_types": [
+                "card"
+            ],
+            });
+          
+            res.send({
+              clientSecret: paymentIntent.client_secret,
+            });
+          });
+
+          //payment post information
+          app.post('/payments', async(req, res)=>{
+            const payment = req.body;
+            const result = await paymentsCollection.insertOne(payment);
+            const id = payment.orderId;
+            const productId = payment.productId;
+            console.log(productId)
+            const filter = {_id: ObjectId(id)}
+            const filter1 = {_id: ObjectId(productId)}
+            const updatedDoc = {
+                $set: {
+                    paid: true,
+                    transactionId: payment.transactionId
+                }
+            }
+            const updatedDoc1 = {
+                $set: {
+                    paid: true,
+                    
+                }
+            }
+           
+            const updatedResult1 = await bikeCategorysCollection.updateOne(filter1, updatedDoc1)
+            const updatedResult = await bookingProductsCollection.updateOne(filter, updatedDoc)
+            res.send(result)
+          })
 
 
         // jwt token get
