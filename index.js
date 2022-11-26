@@ -49,6 +49,7 @@ async function run(){
         const bookingProductsCollection = client.db('bike-resel-project').collection('bookingProducts');
         const sellarAddProductCollection = client.db('bike-resel-project').collection('sellarAddProducts');
         const adverticeProductCollection = client.db('bike-resel-project').collection('adverticeProducts');
+        const wishListProductsCollection = client.db('bike-resel-project').collection('wishListProducts');
 
         //users post info 
         app.post('/users', async(req, res)=>{
@@ -164,9 +165,9 @@ async function run(){
         //sellar add product get
         app.get('/allMyProducts',verifyJwt, async(req, res)=>{
             const email = req.query.email;
-            console.log(email)
+            // console.log(email)
             const decodedEmail = req.decoded.email;
-            console.log(decodedEmail)
+            // console.log(decodedEmail)
             if(email !== decodedEmail){
                 return res.status(403).send({message: 'forbidden accesss'})
             }
@@ -199,6 +200,28 @@ async function run(){
             const query = {};
             const addverticeProducts = await adverticeProductCollection.find(query).toArray();
             res.send(addverticeProducts)
+
+        })
+
+        //wishlist product post api
+        app.post('/wishListProducts', async(req, res)=>{
+            const body = req.body;
+            const wishListProducts = await wishListProductsCollection.insertOne(body);
+            res.send(wishListProducts)
+
+        })
+        //wishlist product get api
+        app.get('/wishListProducts', verifyJwt, async(req, res)=>{
+            const email = req.query.email;
+            console.log(email)
+            const decodedEmail = req.decoded.email;
+            console.log(decodedEmail)
+            if(email !== decodedEmail){
+                return res.status(403).send({message: 'forbidden accesss'})
+            }
+            const query = {wishlishEmail: email};
+            const wishListProducts = await wishListProductsCollection.find(query).toArray();
+            res.send(wishListProducts)
 
         })
 
