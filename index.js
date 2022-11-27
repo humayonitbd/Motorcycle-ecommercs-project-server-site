@@ -310,9 +310,11 @@ async function run(){
             const result = await paymentsCollection.insertOne(payment);
             const id = payment.orderId;
             const payProductId = payment.productId;
+            // const name = payment.productName;
             console.log(payProductId)
             const filter = {_id: ObjectId(id)}
             const filter1 = {_id: ObjectId(payProductId)}
+            // const filter1 = {name: name}
             const updatedDoc = {
                 $set: {
                     paid: true,
@@ -326,8 +328,10 @@ async function run(){
                 }
             }
            
-            const updatedResult1 = await bikeCategorysCollection.updateOne(filter1, updatedDoc1)
+            const updatedResult1 = await bikeAllCategoryCollection.updateOne(filter1, updatedDoc1)
+            console.log(updatedResult1)
             const updatedResult = await bookingProductsCollection.updateOne(filter, updatedDoc)
+            console.log(updatedResult)
             res.send(result)
           })
 
