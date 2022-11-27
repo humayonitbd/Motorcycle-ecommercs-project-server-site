@@ -48,7 +48,7 @@ async function run(){
         const bikeCategorysCollection = client.db('bike-resel-project').collection('bike-categorys');
         const bikeAllCategoryCollection = client.db('bike-resel-project').collection('bike-all-categorys');
         const bookingProductsCollection = client.db('bike-resel-project').collection('bookingProducts');
-        const adverticeProductCollection = client.db('bike-resel-project').collection('adverticeProducts');
+        // const adverticeProductCollection = client.db('bike-resel-project').collection('adverticeProducts');
         const wishListProductsCollection = client.db('bike-resel-project').collection('wishListProducts');
         const paymentsCollection = client.db('bike-resel-project').collection('payments');
 
@@ -57,6 +57,20 @@ async function run(){
             const body = req.body;
             const result = await usersCollection.insertOne(body);
             res.send(result);
+        })
+
+        //google login
+        app.put('/googleUsers', async(req, res)=>{
+            const user = req.body;
+            const email = req.body.email;
+            const filter = {email: email};
+                const options = { upsert: true };
+                const updatedDoc = {
+                    $set:user,
+                }
+
+                const googleLoign = await usersCollection.updateOne(filter, updatedDoc, options)
+                 res.send({email})
         })
 
         //get all users
@@ -95,6 +109,8 @@ async function run(){
         app.put('/seller/verify/:id', async(req, res)=>{
             const id = req.params.id;
             const filter = {_id: ObjectId(id)}
+            const users = await usersCollection.findOne(filter);
+            const filter2 = {sellerEmail: users.email}
             const options = { upsert: true };
             const updatedDoc = {
                 $set: {
@@ -102,7 +118,7 @@ async function run(){
                     
                 }
             }
-
+            const verifyCategory = await bikeAllCategoryCollection.updateMany(filter2, updatedDoc, options)
             const verifySeller = await usersCollection.updateOne(filter, updatedDoc, options)
             res.send(verifySeller)
 
@@ -171,7 +187,7 @@ async function run(){
 
         })
 
-         //booking product delete user
+         //booking product payment 
          app.get('/mybookedProducts/:id', async(req, res)=>{
             const id = req.params.id;
             const query = {_id: ObjectId(id)}
@@ -238,25 +254,35 @@ async function run(){
 
         })
 
-        //wishlist product post api
-        app.post('/wishListProducts', async(req, res)=>{
-            const body = req.body;
-            const wishListProducts = await wishListProductsCollection.insertOne(body);
-            res.send(wishListProducts)
+        // wishlist product post api
+        app.put('/reportProducts/:id', async(req, res)=>{
+            const id = req.params.id;
+            const filter = {_id: ObjectId(id)}
+            const options = { upsert: true };
+            const updatedDoc = {
+                $set: {
+                    report: true,
+                    
+                }
+            }
+            const reportProducts = await bikeAllCategoryCollection.updateOne(filter, updatedDoc, options);
+            res.send(reportProducts)
 
         })
-        //wishlist product get api
-        app.get('/wishListProducts', verifyJwt, async(req, res)=>{
-            const email = req.query.email;
-            // console.log(email)
-            const decodedEmail = req.decoded.email;
-            // console.log(decodedEmail)
-            if(email !== decodedEmail){
-                return res.status(403).send({message: 'forbidden accesss'})
-            }
-            const query = {wishlishEmail: email};
-            const wishListProducts = await wishListProductsCollection.find(query).toArray();
-            res.send(wishListProducts)
+
+        //report product get api
+        app.get('/reportProducts', async(req, res)=>{
+            const query = {report: true};
+            const reportProducts = await bikeAllCategoryCollection.find(query).toArray();
+            res.send(reportProducts)
+
+        })
+        //report product delete api
+        app.delete('/reportProducts/:id', async(req, res)=>{
+            const id = req.params.id;
+            const query = {_id: ObjectId(id)}
+            const reportProducts = await bikeAllCategoryCollection.deleteOne(query);
+            res.send(reportProducts);
 
         })
 
