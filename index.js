@@ -74,7 +74,7 @@ async function run(){
         })
 
         //get all users
-        app.get('/allUsers', async(req, res)=>{
+        app.get('/allUsers', verifyJwt, async(req, res)=>{
             const filter = {role: 'user'}
             const users = await usersCollection.find(filter).toArray();
             res.send(users)
@@ -89,7 +89,7 @@ async function run(){
 
         })
         //get all seller
-        app.get('/allSellers', async(req, res)=>{
+        app.get('/allSellers', verifyJwt, async(req, res)=>{
             const filter = {role: 'seller'}
             const users = await usersCollection.find(filter).toArray();
             res.send(users)
