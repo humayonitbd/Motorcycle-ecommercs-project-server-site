@@ -309,10 +309,10 @@ async function run(){
             const payment = req.body;
             const result = await paymentsCollection.insertOne(payment);
             const id = payment.orderId;
-            const productId = payment.productId;
-            console.log(productId)
+            const payProductId = payment.productId;
+            console.log(payProductId)
             const filter = {_id: ObjectId(id)}
-            const filter1 = {_id: ObjectId(productId)}
+            const filter1 = {_id: ObjectId(payProductId)}
             const updatedDoc = {
                 $set: {
                     paid: true,
